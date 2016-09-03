@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func ExampleListenAndServe() {
+func ExampleServer_ListenAndServe() {
 	var (
 		address     = flag.String("address", "127.0.0.1:2022", "listen address")
 		hostKeyPath = flag.String("host-key", "id_rsa", "the path of the host private key")
