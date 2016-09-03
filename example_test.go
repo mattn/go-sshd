@@ -1,4 +1,4 @@
-package main
+package sshd_test
 
 import (
 	"flag"
@@ -11,15 +11,14 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-var (
-	address     = flag.String("address", "127.0.0.1:2022", "listen address")
-	hostKeyPath = flag.String("host-key", "id_rsa", "the path of the host private key")
-	user        = flag.String("user", "foo", "user name")
-	password    = flag.String("password", "bar", "user password")
-	shell       = flag.String("shell", "bash", "path of shell")
-)
-
-func main() {
+func ExampleListenAndServe() {
+	var (
+		address     = flag.String("address", "127.0.0.1:2022", "listen address")
+		hostKeyPath = flag.String("host-key", "id_rsa", "the path of the host private key")
+		user        = flag.String("user", "foo", "user name")
+		password    = flag.String("password", "bar", "user password")
+		shell       = flag.String("shell", "bash", "path of shell")
+	)
 	flag.Parse()
 
 	// In the latest version of crypto/ssh (after Go 1.3), the SSH server type has been removed
