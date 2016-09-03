@@ -1,29 +1,48 @@
+# go-sshd [![Go Report Card](https://goreportcard.com/badge/github.com/hnakamur/go-sshd)](https://goreportcard.com/report/github.com/hnakamur/go-sshd) [![GoDoc](https://godoc.org/github.com/hnakamur/go-sshd?status.svg)](https://godoc.org/github.com/hnakamur/go-sshd) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/hyperium/hyper/master/LICENSE)
 
-## Go and the Secure Shell protocol
+A sshd written in Go. Forked from [github.com/jpillora/go-and-ssh](https://github.com/jpillora/go-and-ssh).
+Only supported request types are shell, pty-req, and window-change.
 
-http://blog.gopheracademy.com/go-and-ssh/
+## Example usage
 
-See directories for SSH examples 
+### Run the example server.
 
-#### MIT License
+Get the source.
 
-Copyright © 2014 Jaime Pillora &lt;dev@jpillora.com&gt;
+```
+go get github.com/hnakamur/go-sshd
+cd $GOPATH/src/github.com/hnakamur/go-sshd/example
+```
 
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-'Software'), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+Generate the sever host key.
 
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
+```
+ssh-keygen -t rsa -b 2048 -f id_rsa -N ''
+```
 
-THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Run the server at the address 127.0.0.1:2022
+
+```
+go run main.go
+```
+
+### Run a ssh client
+
+Run a ssh client. You can see the password in the example source.
+
+```
+$ ssh -o UserKnownHostsFile=/dev/null -p 2022 foo@127.0.0.1
+The authenticity of host '[127.0.0.1]:2022 ([127.0.0.1]:2022)' can't be established.
+RSA key fingerprint is SHA256:wr...(masked)...wc.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added '[127.0.0.1]:2022' (RSA) to the list of known hosts.
+foo@127.0.0.1's password:
+$ ls
+id_rsa  id_rsa.pub  main.go
+$ exit
+exit
+Connection to 127.0.0.1 closed.
+```
+
+# License
+MIT
