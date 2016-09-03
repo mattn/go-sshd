@@ -63,7 +63,6 @@ func (s *Server) Serve(l net.Listener) error {
 		// Accept all channels
 		go s.handleChannels(chans)
 	}
-	return nil
 }
 
 func (s *Server) handleChannels(chans <-chan ssh.NewChannel) {
