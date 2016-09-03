@@ -1,4 +1,4 @@
-# go-sshd [![Go Report Card](https://goreportcard.com/badge/github.com/hnakamur/go-sshd)](https://goreportcard.com/report/github.com/hnakamur/go-sshd) [![GoDoc](https://godoc.org/github.com/hnakamur/go-sshd?status.svg)](https://godoc.org/github.com/hnakamur/go-sshd) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/hyperium/hyper/master/LICENSE)
+# go-sshd [![Build Status](https://travis-ci.org/hnakamur/go-sshd.svg?branch=master)](https://travis-ci.org/hnakamur/go-sshd) [![Go Report Card](https://goreportcard.com/badge/github.com/hnakamur/go-sshd)](https://goreportcard.com/report/github.com/hnakamur/go-sshd) [![GoDoc](https://godoc.org/github.com/hnakamur/go-sshd?status.svg)](https://godoc.org/github.com/hnakamur/go-sshd) [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/hyperium/hyper/master/LICENSE)
 
 A sshd written in Go. Forked from [github.com/jpillora/go-and-ssh](https://github.com/jpillora/go-and-ssh).
 Only supported request types are shell, pty-req, and window-change.
