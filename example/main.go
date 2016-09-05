@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 
 	sshd "github.com/hnakamur/go-sshd"
 	"golang.org/x/crypto/ssh"
@@ -54,6 +55,15 @@ func main() {
 	config.AddHostKey(private)
 
 	server := sshd.NewServer(*shell, config, log.New(os.Stdout, "", 0))
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		fmt.Println("Got signal. Now stop the server")
+		server.Close()
+	}()
+
 	err = server.ListenAndServe(*address)
 	if err != nil {
 		log.Fatalf("Failed to listen and serve; %s", err)
