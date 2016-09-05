@@ -23,6 +23,10 @@ type Server struct {
 	shellPath string
 	config    *ssh.ServerConfig
 	logger    *log.Logger
+	listener  net.Listener
+
+	mu     sync.Mutex
+	closed bool
 }
 
 // NewServer creates a sshd server.
@@ -47,9 +51,13 @@ func (s *Server) ListenAndServe(addr string) error {
 
 // Serve let the server accept incoming connections and handle them.
 func (s *Server) Serve(l net.Listener) error {
+	s.listener = l
 	for {
 		tcpConn, err := l.Accept()
 		if err != nil {
+			if s.isClosed() {
+				return nil
+			}
 			return fmt.Errorf("Failed to accept incoming connection (%s)", err)
 		}
 		// Before use, a handshake must be performed on the incoming net.Conn.
@@ -63,6 +71,21 @@ func (s *Server) Serve(l net.Listener) error {
 		// Accept all channels
 		go s.handleChannels(chans)
 	}
+}
+
+// Close stops the server.
+func (s *Server) Close() error {
+	s.mu.Lock()
+	s.closed = true
+	s.mu.Unlock()
+	return s.listener.Close()
+}
+
+func (s *Server) isClosed() bool {
+	s.mu.Lock()
+	closed := s.closed
+	s.mu.Unlock()
+	return closed
 }
 
 func (s *Server) handleChannels(chans <-chan ssh.NewChannel) {
