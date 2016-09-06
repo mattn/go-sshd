@@ -1,14 +1,17 @@
 // Package sshd provides a subset of the ssh server protocol.
-// Only supported request types are shell, pty-req, and window-change.
+// Only supported request types are exec, shell, pty-req, and window-change.
 package sshd
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -113,48 +116,98 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 		return
 	}
 
-	// Fire up bash for this session
-	shell := exec.Command(s.shellPath)
-
-	// Prepare teardown function
-	close := func() {
-		connection.Close()
-		_, err := shell.Process.Wait()
-		if err != nil {
-			s.logger.Printf("Failed to exit shell (%s)", err)
-		}
-		s.logger.Printf("Session closed")
-	}
-
-	// Allocate a terminal for this channel
-	s.logger.Print("Creating pty...")
-	shellf, err := pty.Start(shell)
-	if err != nil {
-		s.logger.Printf("Could not start pty (%s)", err)
-		close()
-		return
-	}
-
-	//pipe session to shell and visa-versa
-	var once sync.Once
-	go func() {
-		io.Copy(connection, shellf)
-		once.Do(close)
-	}()
-	go func() {
-		io.Copy(shellf, connection)
-		once.Do(close)
-	}()
-
 	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"
 	go func() {
+		var shellf *os.File
+
 		for req := range requests {
+			//fmt.Printf("req=%+v\n", req)
 			switch req.Type {
+			case "exec":
+				req.Reply(true, nil)
+
+				cmd := parseCommand(req.Payload)
+				shell := exec.Command(s.shellPath, "-c", cmd)
+
+				// Prepare teardown function
+				close := func() {
+					err := shell.Wait()
+					var exitStatus int32
+					if err != nil {
+						if e2, ok := err.(*exec.ExitError); ok {
+							if s, ok := e2.Sys().(syscall.WaitStatus); ok {
+								exitStatus = int32(s.ExitStatus())
+							} else {
+								panic(errors.New("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus."))
+							}
+						}
+					}
+					var b bytes.Buffer
+					binary.Write(&b, binary.BigEndian, exitStatus)
+					connection.SendRequest("exit-status", false, b.Bytes())
+					connection.Close()
+					s.logger.Printf("Session closed")
+				}
+
+				// Allocate a terminal for this channel
+				s.logger.Print("Creating pty...")
+				var err error
+				shellf, err = pty.Start(shell)
+				if err != nil {
+					s.logger.Printf("Could not start pty (%s)", err)
+					close()
+					return
+				}
+
+				//pipe session to shell and visa-versa
+				var once sync.Once
+				go func() {
+					io.Copy(connection, shellf)
+					once.Do(close)
+				}()
+				go func() {
+					io.Copy(shellf, connection)
+					once.Do(close)
+				}()
 			case "shell":
 				// We only accept the default shell
 				// (i.e. no command in the Payload)
 				if len(req.Payload) == 0 {
 					req.Reply(true, nil)
+
+					// Fire up bash for this session
+					shell := exec.Command(s.shellPath)
+
+					// Prepare teardown function
+					close := func() {
+						connection.Close()
+						_, err := shell.Process.Wait()
+						if err != nil {
+							s.logger.Printf("Failed to exit shell (%s)", err)
+						}
+						s.logger.Printf("Session closed")
+					}
+
+					// Allocate a terminal for this channel
+					s.logger.Print("Creating pty...")
+					var err error
+					shellf, err = pty.Start(shell)
+					if err != nil {
+						s.logger.Printf("Could not start pty (%s)", err)
+						close()
+						return
+					}
+
+					//pipe session to shell and visa-versa
+					var once sync.Once
+					go func() {
+						io.Copy(connection, shellf)
+						once.Do(close)
+					}()
+					go func() {
+						io.Copy(shellf, connection)
+						once.Do(close)
+					}()
 				}
 			case "pty-req":
 				termLen := req.Payload[3]
@@ -169,6 +222,15 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 			}
 		}
 	}()
+}
+
+func parseCommand(b []byte) string {
+	l := int(binary.BigEndian.Uint32(b))
+	cmd := string(b[4:])
+	if len(cmd) != l {
+		log.Fatalf("command length unmatch, got=%d, want=%d", len(cmd), l)
+	}
+	return cmd
 }
 
 // =======================
