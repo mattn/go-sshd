@@ -129,8 +129,14 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 				cmd := parseCommand(req.Payload)
 				shell := exec.Command(s.shellPath, "-c", cmd)
 
+				var err error
+				var in io.WriteCloser
+				var out io.ReadCloser
+
 				// Prepare teardown function
 				close := func() {
+					in.Close()
+
 					err := shell.Wait()
 					var exitStatus int32
 					if err != nil {
@@ -149,10 +155,21 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 					s.logger.Printf("Session closed")
 				}
 
-				// Allocate a terminal for this channel
-				s.logger.Print("Creating pty...")
-				var err error
-				shellf, err = pty.Start(shell)
+				in, err = shell.StdinPipe()
+				if err != nil {
+					s.logger.Printf("Could not get stdin pipe (%s)", err)
+					close()
+					return
+				}
+
+				out, err = shell.StdoutPipe()
+				if err != nil {
+					s.logger.Printf("Could not get stdout pipe (%s)", err)
+					close()
+					return
+				}
+
+				err = shell.Start()
 				if err != nil {
 					s.logger.Printf("Could not start pty (%s)", err)
 					close()
@@ -162,11 +179,11 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 				//pipe session to shell and visa-versa
 				var once sync.Once
 				go func() {
-					io.Copy(connection, shellf)
+					io.Copy(connection, out)
 					once.Do(close)
 				}()
 				go func() {
-					io.Copy(shellf, connection)
+					io.Copy(in, connection)
 					once.Do(close)
 				}()
 			case "shell":
