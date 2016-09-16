@@ -81,6 +81,9 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	s.mu.Unlock()
+	if s.listener == nil {
+		return nil
+	}
 	return s.listener.Close()
 }
 
