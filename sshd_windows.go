@@ -15,11 +15,7 @@ type ShellFile struct {
 }
 
 func (sf *ShellFile) Read(b []byte) (int, error) {
-	n, err := sf.reader.Read(b)
-	if err == nil {
-		sf.writer.Write([]byte{})
-	}
-	return n, err
+	return sf.reader.Read(b)
 }
 
 func (sf *ShellFile) Write(b []byte) (int, error) {
@@ -37,6 +33,7 @@ func (sf *ShellFile) Fd() uintptr {
 }
 
 func startShell(c *exec.Cmd, s ssh.Channel) (*ShellFile, error) {
+	// TODO On Windows, shell not echo back.
 	writer, err := c.StdinPipe()
 	if err != nil {
 		return nil, err
