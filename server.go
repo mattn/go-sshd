@@ -3,18 +3,12 @@
 package sshd
 
 import (
-	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
-	"os/exec"
-	"runtime"
 	"sync"
-	"syscall"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -126,72 +120,8 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 			switch req.Type {
 			case "exec":
 				req.Reply(true, nil)
+				s.exec(connection, parseCommand(req.Payload))
 
-				cmd := parseCommand(req.Payload)
-				var shell *exec.Cmd
-				if runtime.GOOS == "windows" {
-					shell = exec.Command("cmd", "/c", cmd)
-				} else {
-					shell = exec.Command(s.shellPath, "-c", cmd)
-				}
-
-				var err error
-				var in io.WriteCloser
-				var out io.ReadCloser
-
-				// Prepare teardown function
-				close := func() {
-					in.Close()
-
-					err := shell.Wait()
-					var exitStatus int32
-					if err != nil {
-						if e2, ok := err.(*exec.ExitError); ok {
-							if s, ok := e2.Sys().(syscall.WaitStatus); ok {
-								exitStatus = int32(s.ExitStatus())
-							} else {
-								panic(errors.New("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus."))
-							}
-						}
-					}
-					var b bytes.Buffer
-					binary.Write(&b, binary.BigEndian, exitStatus)
-					connection.SendRequest("exit-status", false, b.Bytes())
-					connection.Close()
-					s.logger.Printf("Session closed")
-				}
-
-				in, err = shell.StdinPipe()
-				if err != nil {
-					s.logger.Printf("Could not get stdin pipe (%s)", err)
-					close()
-					return
-				}
-
-				out, err = shell.StdoutPipe()
-				if err != nil {
-					s.logger.Printf("Could not get stdout pipe (%s)", err)
-					close()
-					return
-				}
-
-				err = shell.Start()
-				if err != nil {
-					s.logger.Printf("Could not start pty (%s)", err)
-					close()
-					return
-				}
-
-				//pipe session to shell and visa-versa
-				var once sync.Once
-				go func() {
-					io.Copy(connection, out)
-					once.Do(close)
-				}()
-				go func() {
-					io.Copy(in, connection)
-					once.Do(close)
-				}()
 			case "shell":
 				// We only accept the default shell
 				// (i.e. no command in the Payload)
@@ -199,7 +129,7 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 					req.Reply(true, nil)
 
 					// Fire up bash for this session
-					shellf = s.startShell(s.shellPath, connection)
+					shellf = s.startShell(connection)
 				}
 			case "pty-req":
 				termLen := req.Payload[3]
