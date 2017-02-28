@@ -199,49 +199,18 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 					req.Reply(true, nil)
 
 					// Fire up bash for this session
-					shell := exec.Command(s.shellPath)
-
-					// Prepare teardown function
-					close := func() {
-						connection.Close()
-						_, err := shell.Process.Wait()
-						if err != nil {
-							s.logger.Printf("Failed to exit shell (%s)", err)
-						}
-						s.logger.Printf("Session closed")
-					}
-
-					// Allocate a terminal for this channel
-					s.logger.Print("Creating pty...")
-					var err error
-					shellf, err = startShell(shell, connection)
-					if err != nil {
-						s.logger.Printf("Could not start pty (%s)", err)
-						close()
-						return
-					}
-
-					//pipe session to shell and visa-versa
-					var once sync.Once
-					go func() {
-						io.Copy(connection, shellf)
-						once.Do(close)
-					}()
-					go func() {
-						io.Copy(shellf, connection)
-						once.Do(close)
-					}()
+					shellf = s.startShell(exec.Command(s.shellPath), connection)
 				}
 			case "pty-req":
 				termLen := req.Payload[3]
 				w, h := parseDims(req.Payload[termLen+4:])
-				setWinsize(shellf.Fd(), w, h)
+				shellf.setWinsize(w, h)
 				// Responding true (OK) here will let the client
 				// know we have a pty ready for input
 				req.Reply(true, nil)
 			case "window-change":
 				w, h := parseDims(req.Payload)
-				setWinsize(shellf.Fd(), w, h)
+				shellf.setWinsize(w, h)
 			}
 		}
 	}()

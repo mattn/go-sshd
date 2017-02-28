@@ -12,6 +12,7 @@ import (
 type ShellFile struct {
 	reader io.ReadCloser
 	writer io.WriteCloser
+	cmd    *exec.Cmd
 }
 
 func (sf *ShellFile) Read(b []byte) (int, error) {
@@ -32,22 +33,35 @@ func (sf *ShellFile) Fd() uintptr {
 	return 0
 }
 
-func startShell(c *exec.Cmd, s ssh.Channel) (*ShellFile, error) {
+func (s *Server) startShell(c *exec.Cmd, connection ssh.Channel) *ShellFile {
 	// TODO On Windows, shell not echo back.
 	writer, err := c.StdinPipe()
 	if err != nil {
-		return nil, err
+		s.logger.Printf("Could not start pty (%s)", err)
+		return nil
 	}
 	reader, err := c.StdoutPipe()
 	if err != nil {
-		return nil, err
+		s.logger.Printf("Could not start pty (%s)", err)
+		return nil
 	}
 	err = c.Start()
 	if err != nil {
-		return nil, err
+		s.logger.Printf("Could not start pty (%s)", err)
+		return nil
 	}
-	return &ShellFile{reader: reader, writer: writer}, nil
+	//pipe session to shell and visa-versa
+	go func() {
+		io.Copy(connection, reader)
+		reader.Close()
+	}()
+	go func() {
+		io.Copy(writer, connection)
+		writer.Close()
+	}()
+	return &ShellFile{reader: reader, writer: writer, cmd: c}
 }
 
-func setWinsize(fd uintptr, w, h uint32) {
+func (sf *ShellFile) setWinsize(w, h uint32) {
+	// TODO
 }
