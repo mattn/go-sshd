@@ -20,7 +20,9 @@ type ShellFile struct {
 }
 
 // start shell
-func (s *Server) startShell(shell *exec.Cmd, connection ssh.Channel) *ShellFile {
+func (s *Server) startShell(shellPath string, connection ssh.Channel) *ShellFile {
+	shell := exec.Command(shellPath)
+
 	// Prepare teardown function
 	close := func() {
 		connection.Close()

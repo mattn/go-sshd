@@ -15,37 +15,21 @@ type ShellFile struct {
 	cmd    *exec.Cmd
 }
 
-func (sf *ShellFile) Read(b []byte) (int, error) {
-	return sf.reader.Read(b)
-}
+func (s *Server) startShell(shellPath string, connection ssh.Channel) *ShellFile {
+	shell := exec.Command(shellPath)
 
-func (sf *ShellFile) Write(b []byte) (int, error) {
-	return sf.writer.Write(b)
-}
-
-func (sf *ShellFile) Close() error {
-	sf.reader.Close()
-	sf.writer.Close()
-	return nil
-}
-
-func (sf *ShellFile) Fd() uintptr {
-	return 0
-}
-
-func (s *Server) startShell(c *exec.Cmd, connection ssh.Channel) *ShellFile {
 	// TODO On Windows, shell not echo back.
-	writer, err := c.StdinPipe()
+	writer, err := shell.StdinPipe()
 	if err != nil {
 		s.logger.Printf("Could not start pty (%s)", err)
 		return nil
 	}
-	reader, err := c.StdoutPipe()
+	reader, err := shell.StdoutPipe()
 	if err != nil {
 		s.logger.Printf("Could not start pty (%s)", err)
 		return nil
 	}
-	err = c.Start()
+	err = shell.Start()
 	if err != nil {
 		s.logger.Printf("Could not start pty (%s)", err)
 		return nil
@@ -59,7 +43,7 @@ func (s *Server) startShell(c *exec.Cmd, connection ssh.Channel) *ShellFile {
 		io.Copy(writer, connection)
 		writer.Close()
 	}()
-	return &ShellFile{reader: reader, writer: writer, cmd: c}
+	return &ShellFile{reader: reader, writer: writer, cmd: shell}
 }
 
 func (sf *ShellFile) setWinsize(w, h uint32) {

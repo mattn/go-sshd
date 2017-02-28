@@ -199,7 +199,7 @@ func (s *Server) handleChannel(newChannel ssh.NewChannel) {
 					req.Reply(true, nil)
 
 					// Fire up bash for this session
-					shellf = s.startShell(exec.Command(s.shellPath), connection)
+					shellf = s.startShell(s.shellPath, connection)
 				}
 			case "pty-req":
 				termLen := req.Payload[3]
