@@ -4,6 +4,7 @@ package sshd
 
 import (
 	"io"
+	"os"
 	"os/exec"
 	"syscall"
 	"unsafe"
@@ -11,7 +12,7 @@ import (
 	"github.com/kr/pty"
 )
 
-type ShellFile File
+type ShellFile os.File
 
 // start shell
 func startShell(c *exec.Cmd) (io.ReadWriteCloser, error) {
